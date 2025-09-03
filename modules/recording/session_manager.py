@@ -13,8 +13,8 @@ class SessionManager:
         if not os.path.exists(self.base_dir):
             return []
 
-        for session_dir in sorted(os.listdir(self.base_dir)):
-            session_path = os.path.join(self.base_dir, session_dir)
+        for session_id in sorted(os.listdir(self.base_dir)):
+            session_path = os.path.join(self.base_dir, session_id)
             if os.path.isdir(session_path):
-                rows.append([session_dir, FileUtils.get_relative_if_exists(session_path, "transcript.txt"), FileUtils.get_relative_if_exists(session_path, "transcript.srt")])
+                rows.append([session_id, FileUtils.get_relative_if_exists(session_path, f"{session_id}_transcript.txt"), FileUtils.get_relative_if_exists(session_path, f"{session_id}_subtitles.srt")])
         return rows

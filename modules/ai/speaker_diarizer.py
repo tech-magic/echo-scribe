@@ -1,41 +1,42 @@
 import numpy as np
 import torch
 from speechbrain.inference import SpeakerRecognition
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.cluster import AgglomerativeClustering
 
 # ===============================================================
 # Component: Speaker Diarizer
 # ===============================================================
 class SpeakerDiarizer:
-    def __init__(self, similarity_threshold=0.65):
+    def __init__(self, distance_threshold=1.0, min_embeddings=5):
         self.spkrec = SpeakerRecognition.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb"
         )
-        self.speakers = {}
+        self.speaker_embeddings = []
+        self.speaker_timestamps = []
+        self.cluster_to_speaker = {}
         self.next_speaker_id = 1
-        self.similarity_threshold = similarity_threshold
-
-    def _get_embedding(self, chunk: np.ndarray):
-        waveform = torch.from_numpy(chunk).float().unsqueeze(0)
-        waveform = waveform / (waveform.abs().max() + 1e-9)
-        return (
-            self.spkrec.encode_batch(waveform)
-            .detach()
-            .cpu()
-            .numpy()
-            .squeeze()
-        )
+        self.min_embeddings = min_embeddings
+        self.distance_threshold = distance_threshold
 
     def get_label(self, chunk: np.ndarray, start_time: float) -> str:
-        embedding = self._get_embedding(chunk)
+        waveform = torch.from_numpy(chunk).float().unsqueeze(0)
+        waveform = waveform / (waveform.abs().max() + 1e-9)
 
-        for spk_id, embs in self.speakers.items():
-            sims = cosine_similarity([embedding], embs).flatten()
-            if np.max(sims) > self.similarity_threshold:
-                self.speakers[spk_id].append(embedding)
-                return spk_id
+        embedding = self.spkrec.encode_batch(waveform).detach().cpu().numpy().squeeze()
+        self.speaker_embeddings.append(embedding)
+        self.speaker_timestamps.append(start_time)
 
-        spk_id = f"Speaker_{self.next_speaker_id}"
-        self.speakers[spk_id] = [embedding]
-        self.next_speaker_id += 1
-        return spk_id
+        if len(self.speaker_embeddings) >= self.min_embeddings:
+            X = np.vstack(self.speaker_embeddings)
+            clustering = AgglomerativeClustering(
+                n_clusters=None, distance_threshold=self.distance_threshold
+            )
+            labels = clustering.fit_predict(X)
+            cluster_idx = labels[-1]
+
+            if cluster_idx not in self.cluster_to_speaker:
+                self.cluster_to_speaker[cluster_idx] = f"Speaker_{self.next_speaker_id}"
+                self.next_speaker_id += 1
+
+            return self.cluster_to_speaker[cluster_idx]
+        return "Speaker_?"
