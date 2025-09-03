@@ -24,6 +24,12 @@ By feeding your speaker-labeled meeting transcripts to ChatGPT, you unlock power
 
 ---
 
+## 📸 Demo
+
+![Demo](demo/demo.gif)
+
+---
+
 ## 📦 Installation Guide
 
 #### 🖥️ Test Environment
