@@ -120,7 +120,7 @@ Then open your browser at 👉 [http://localhost:7860](http://localhost:7860)
   *Differentiates between speakers in audio.*  
   *Example:* Assigns speaker IDs and tracks who is speaking when.
 
-### Recording Components
+### Transcription Components
 
 - **TranscriptWriter 📜**  
   *Writes transcripts to text and SRT files.*  
