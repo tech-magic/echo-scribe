@@ -52,16 +52,26 @@ def start_recording():
     thread = threading.Thread(target=pipeline.run, daemon=True)
     thread.start()
 
-    return f"✅ Recording started. Session: {current_session_id}"
-
+    return (
+        gr.update(value=f"✅ Recording started for Session: {current_session_id}", visible=True),
+        gr.update(interactive=False),  # disable Start button
+        gr.update(interactive=True)   # enable Stop button
+    )
 
 def stop_recording():
     global pipeline, current_session_id
+    status_message = "⚠️ No active recording."
     if pipeline:
         pipeline.stop_event.set()
+        last_session_id = current_session_id
         current_session_id = None
-        return "🛑 Recording stopped. Session: {current_session_id}"
-    return "⚠️ No active recording."
+        status_message = f"🛑 Recording stopped for Session: {last_session_id}"
+
+    return (
+        gr.update(value=status_message, visible=True),
+        gr.update(interactive=True),   # enable Start button
+        gr.update(interactive=False)  # disable Stop button
+    )
 
 
 def get_transcript():
@@ -161,11 +171,13 @@ with gr.Blocks(css=custom_gradio_css) as demo:
                     pass
                 with gr.Column():
                     with gr.Row():
-                        start_btn = gr.Button("▶️ Start Recording")
-                        stop_btn = gr.Button("⏹️ Stop Recording")
+                        start_btn = gr.Button("▶️ Start Recording", interactive=True)
+                        stop_btn = gr.Button("⏹️ Stop Recording", interactive=False)
+                    with gr.Row():
+                        recording_status_box = gr.Markdown("")
 
             with gr.Row():
-                transcript_box = gr.Textbox(label="✍️📜 Transcript (in Progress) 🧑‍🤝‍🧑", elem_id="transcript_box", lines=25, interactive=False)
+                transcript_box = gr.Textbox(label="✍️📜 Transcript Log 🧑‍🤝‍🧑", elem_id="transcript_box", lines=25, interactive=False)
 
         with gr.Column(scale=1):
             with gr.Row():
@@ -175,8 +187,8 @@ with gr.Blocks(css=custom_gradio_css) as demo:
                 session_table = gr.HTML(label="")
 
     # Button actions
-    start_btn.click(start_recording, outputs=transcript_box)
-    stop_btn.click(stop_recording, outputs=transcript_box)
+    start_btn.click(start_recording, outputs=[recording_status_box, start_btn, stop_btn])
+    stop_btn.click(stop_recording, outputs=[recording_status_box, start_btn, stop_btn])
 
     # Use gr.Timer for periodic updates
     timer1 = gr.Timer(2.0)
