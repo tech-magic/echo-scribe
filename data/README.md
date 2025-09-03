@@ -1,0 +1,1 @@
+# This folder stores all AI-generated transcriptions in TXT/SRT formats for each recording session.
