@@ -272,13 +272,13 @@ EchoScribe also provides REST endpoints via **FastAPI**:
 
 - **Download transcript/subtitles files:**  
   ```
-  GET /data/{session_id}/{filename}
+  GET /gradio/data/{session_id}/{filename}
   ```
 
 Example:
 
 ```bash
-curl http://localhost:7860/data/01-09-2025-20-15-45/01-09-2025-20-15-45_transcript.srt -o 01-09-2025-20-15-45_transcript.srt
+curl http://localhost:7860/gradio/data/01-09-2025-20-15-45/01-09-2025-20-15-45_transcript.srt -o 01-09-2025-20-15-45_transcript.srt
 ```
 
 ---
