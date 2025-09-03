@@ -72,6 +72,8 @@ python3 app.py
 
 Then open your browser at 👉 [http://localhost:7860](http://localhost:7860)
 
+> The first run (during the initial setup) will take a while because it needs to download the optimized Whisper and SpeechBrain models from their repositories to your computer.
+
 ---
 
 ## 💻 Web UI Preview
