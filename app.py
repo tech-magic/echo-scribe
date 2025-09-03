@@ -59,6 +59,7 @@ def stop_recording():
     global pipeline, current_session_id
     if pipeline:
         pipeline.stop_event.set()
+        current_session_id = None
         return "🛑 Recording stopped. Session: {current_session_id}"
     return "⚠️ No active recording."
 
@@ -70,7 +71,7 @@ def get_transcript():
     return ""
 
 def list_sessions():
-    global base_session_dir
+    global base_session_dir, current_session_id
     session_manager = SessionManager(base_session_dir)
 
     # Collect sessions with datetime objects for sorting
@@ -87,16 +88,26 @@ def list_sessions():
     # Sort descending by datetime
     session_list.sort(key=lambda x: x[0], reverse=True)
 
+    # Return only the latest 5 sessions
+    latest_5_sessions = session_list[:5]
+
     # Build HTML table
     rows = []
-    for dt, sid, txt_file, srt_file in session_list:
-        txt_link = f'<a href="{txt_file}" download><button>Download Script</button></a>' if txt_file else ""
-        srt_link = f'<a href="{srt_file}" download><button>Download Subtitles</button></a>' if srt_file else ""
-        formatted = dt.strftime("%Y %b %d at %-I:%M%p").lower()  # formatted timestamp
-        rows.append(f"<tr><td>{sid}</td><td>{formatted}</td><td>{txt_link}</td><td>{srt_link}</td></tr>")
+    for dt, sid, txt_file, srt_file in latest_5_sessions:
 
-    html_header = "<h3>📂 Past Sessions</h3>"
-    html_table = "<table><tr><th>Session ID</th><th>Start Time</th><th>TXT File</th><th>SRT File</th></tr>" + "".join(rows) + "</table>"
+        start_time = dt.strftime("%Y %b %d at %-I:%M%p").lower()  # formatted timestamp
+
+        status = "✅ Done"
+        if sid == current_session_id:
+            status = "🟢 Active"
+
+        txt_link = f'<a href="{txt_file}" download><button>Download</button></a>' if txt_file else ""
+        srt_link = f'<a href="{srt_file}" download><button>Download</button></a>' if srt_file else ""
+
+        rows.append(f"<tr><td>{sid}</td><td>{start_time}</td><td>{status}</td><td>{txt_link}</td><td>{srt_link}</td></tr>")
+
+    html_header = "<h3>📂 Latest 5 Sessions (Includes Current, if Active)</h3>"
+    html_table = "<table><tr><th>Session ID</th><th>Start Time</th><th>Status</th><th>Script (.txt)</th><th>Subtitles (.srt)</th></tr>" + "".join(rows) + "</table>"
 
     return "<center>" + html_header + html_table + "</center>"
 
@@ -104,30 +115,64 @@ def list_sessions():
 # Gradio UI Layout
 # ====================
 
-svg_favicon = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <text y=".9em" font-size="90">🎙️</text>
-</svg>
+# App Intro
+intro_title = """
+<center>
+<h1>🎙️ EchoScribe </h1>
+<h2>Real-Time, Speaker-Aware Meeting Transcripts — No Cloud Needed, On your Local Device, and FREE! 🕒🧑‍🤝‍🧑</h2>
+</center>
 """
 
-# Encode as data URI
-favicon_data_uri = "data:image/svg+xml," + svg_favicon.replace("\n", "").replace(" ", "%20")
+intro_markdown = """
+> Meet 🎙️ **EchoScribe** — your **free AI-powered** meeting companion! 🚀
+It captures conversations 🎤, transcribes them instantly in English 📜, separates each speaker 🧑‍🤝‍🧑, and saves your transcripts in **TXT** or **SRT**. All 100% free, open-source, and runs right on your own device. 💻✨
 
-with gr.Blocks() as demo:
+By feeding your speaker-labeled meeting transcripts to ChatGPT, you unlock powerful insights and productivity boosts:
+- **Summarize meetings for everyone** — generate clear, concise summaries for laymen or management.
+- **Automatically track action items** — identify tasks discussed and assign responsibilities without manual effort.
+- **Spot issues and solutions** — quickly highlight problems raised and the solutions proposed.
+- **Get AI-driven guidance** — receive actionable answers for unresolved questions or challenges discussed in the meeting.
+"""
+
+custom_gradio_css = """
+
+.column-border {
+    border: 2px solid #4CAF50;  /* Green border */
+    padding: 10px;
+    border-radius: 8px;
+}
+
+#transcript_box label span {
+    color: #4CAF50 !important;   /* Green label */
+    font-weight: bold !important;
+    font-size: 18px !important;
+}
+
+"""
+
+with gr.Blocks(css=custom_gradio_css) as demo:
     
-    gr.Markdown("## 🎤 Real-time Transcription with Speaker Diarization")
-
+    gr.Markdown(intro_title)
+        
     with gr.Row():
-        start_btn = gr.Button("▶️ Start Recording")
-        stop_btn = gr.Button("⏹️ Stop Recording")
-        placeholder_1 = gr.Markdown("")
-        placeholder_1 = gr.Markdown("")
-        placeholder_1 = gr.Markdown("")
-        placeholder_1 = gr.Markdown("")
+        with gr.Column(scale=1, elem_classes="column-border"):
+            with gr.Row():
+                with gr.Column():
+                    pass
+                with gr.Column():
+                    with gr.Row():
+                        start_btn = gr.Button("▶️ Start Recording")
+                        stop_btn = gr.Button("⏹️ Stop Recording")
 
-    with gr.Row():
-        transcript_box = gr.Textbox(label="Transcript", lines=20, interactive=False)
-        session_table = gr.HTML(label="")
+            with gr.Row():
+                transcript_box = gr.Textbox(label="✍️📜 Transcript (in Progress) 🧑‍🤝‍🧑", elem_id="transcript_box", lines=25, interactive=False)
+
+        with gr.Column(scale=1):
+            with gr.Row():
+                gr.Markdown(intro_markdown)
+
+            with gr.Row():
+                session_table = gr.HTML(label="")
 
     # Button actions
     start_btn.click(start_recording, outputs=transcript_box)
@@ -149,10 +194,10 @@ with gr.Blocks() as demo:
 # ==============================
 
 # ---- FastAPI app ----
-app = FastAPI(title="EchoScribe 🎙️")
+app = FastAPI()
 
 # Add a REST endpoint for static files
-@app.get("/data/{session_id}/{filename}")
+@app.get("/gradio/data/{session_id}/{filename}")
 async def serve_file(session_id: str, filename: str):
     global base_session_dir
     filepath = os.path.join(base_session_dir, session_id, filename)
@@ -160,18 +205,29 @@ async def serve_file(session_id: str, filename: str):
         return {"error": "file not found"}
     return FileResponse(filepath)
 
-# Customizing favicon icon
+# Customizing overall Look and Feel
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>EchoScribe 🎤</title>
+        <title>EchoScribe</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎤</text></svg>">
+        <style>
+            html, body {{
+                height: 100%;
+                margin: 0;
+            }}
+            iframe {{
+                width: 100%;
+                height: 100%;
+                border: none;
+            }}
+        </style>
     </head>
     <body>
-        <iframe src="/gradio" style="width:100%;height:100%;border:none;"></iframe>
+        <iframe src="/gradio"></iframe>
     </body>
     </html>
     """

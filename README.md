@@ -56,8 +56,8 @@ sysctl -n machdep.cpu.brand_string
 
 ```bash
 # Clone this repository
-git clone https://github.com/tech-magic/echoscribe.git
-cd echoscribe
+git clone https://github.com/tech-magic/echo-scribe.git
+cd echo-scribe
 
 # Create your own python virtual environment
 python3 -m venv echo-scribe-venv
