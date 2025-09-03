@@ -2,6 +2,8 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 
+from datetime import datetime, timedelta
+
 # ===============================================================
 # Coordinator: Transcription Pipeline
 # ===============================================================
@@ -24,8 +26,26 @@ class TranscriptionPipeline:
             start = chunk_start_time + segment.start
             end = chunk_start_time + segment.end
             speaker = self.diarizer.get_label(audio_np, start)
+
+            # Writer returns the console/text line
             line = self.writer.write(start, end, speaker, segment.text)
-            self.transcript_lines.append(line)
+
+            # Store with timestamp
+            self.transcript_lines.append({
+                "time": datetime.utcnow(),
+                "line": line
+            })
+
+            # Purge lines older than 1 hour
+            cutoff = datetime.utcnow() - timedelta(hours=1)
+            self.transcript_lines = [
+                entry for entry in self.transcript_lines
+                if entry["time"] >= cutoff
+            ]
+
+    def get_transcript_log(self):
+        """Return an array of transcript lines (strings) only."""
+        return [entry["line"] for entry in self.transcript_lines]
 
     def run(self):
         with self.producer.record_stream():

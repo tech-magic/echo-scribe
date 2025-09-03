@@ -77,7 +77,7 @@ def stop_recording():
 def get_transcript():
     global pipeline
     if pipeline:
-        return "\n".join(pipeline.transcript_lines)
+        return "\n".join(pipeline.get_transcript_log())
     return ""
 
 def list_sessions():
@@ -177,7 +177,7 @@ with gr.Blocks(css=custom_gradio_css) as demo:
                         recording_status_box = gr.Markdown("")
 
             with gr.Row():
-                transcript_box = gr.Textbox(label="✍️📜 Transcript Log 🧑‍🤝‍🧑", elem_id="transcript_box", lines=25, interactive=False)
+                transcript_box = gr.Textbox(label="✍️📜 Transcript Log (past Hour) 🧑‍🤝‍🧑", elem_id="transcript_box", lines=25, interactive=False)
 
         with gr.Column(scale=1):
             with gr.Row():
